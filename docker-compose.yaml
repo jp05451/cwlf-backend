@@ -24,9 +24,18 @@ services:
       mysql_db:
         condition: service_healthy
       rabbitmq:
-        # condition: service_started
         condition: service_healthy
-  # 這是你原本的資料庫服務
+    healthcheck:
+      # test: 使用我們剛安裝的 curl 工具去檢查 /health 端點
+      # -f: --fail 的縮寫，如果 HTTP 狀態不是 2xx，curl 會以錯誤碼退出，這正是我們需要的
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s    # 每 30 秒檢查一次
+      timeout: 10s     # 檢查超過 10 秒算失敗
+      retries: 3       # 連續失敗 3 次才標記為 unhealthy
+      start_period: 60s # 同樣給予寬限期，等待 app 啟動並完成首次連線
+  
+  # 這是我們的 MySQL 服務
+  # 注意：這裡的 image 版本是 9.4.0，
   mysql_db:
     image: mysql:9.4.0
     container_name: mysql-compose
@@ -46,7 +55,7 @@ services:
       # timeout: 如果檢查指令超過 5 秒沒回應，就視為失敗
       timeout: 5s
       # retries: 連續失敗 5 次後，才將容器標記為 "unhealthy"
-      retries: 10
+      retries: 5
       start_period: 10s
 
 
@@ -73,7 +82,7 @@ services:
       test: ["CMD-SHELL", "rabbitmq-diagnostics check_port_connectivity"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
       start_period: 20s
 
 
