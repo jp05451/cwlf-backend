@@ -21,12 +21,13 @@ services:
     # depends_on: 確保在啟動 app 之前，先啟動 mysql_db 和 rabbitmq
     # 這能解決大部分啟動順序問題。
     depends_on:
-      - mysql_db
-      - rabbitmq
-
+      mysql_db:
+        condition: service_healthy
+      rabbitmq:
+        # condition: service_started
+        condition: service_started
   # 這是你原本的資料庫服務
   mysql_db:
-    # 教授的建議：固定版本號更穩定，避免 future 最新版造成問題
     image: mysql:9.4.0
     container_name: mysql-compose
     environment:
@@ -36,6 +37,16 @@ services:
     volumes:
       # 使用 Docker 管理的 "named volume"，而不是直接綁定目錄
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      # test: 要執行的檢查指令。CMD-SHELL 允許我們使用 shell 語法。
+      # mysqladmin ping 會嘗試連接伺服器，成功則返回 0。
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p'${MYSQL_ROOT_PASSWORD}'"]
+      # interval: 每 10 秒檢查一次
+      interval: 10s
+      # timeout: 如果檢查指令超過 5 秒沒回應，就視為失敗
+      timeout: 5s
+      # retries: 連續失敗 5 次後，才將容器標記為 "unhealthy"
+      retries: 10
 
   # 這是我們新增的 RabbitMQ 服務
   rabbitmq:
@@ -53,6 +64,15 @@ services:
     volumes:
       # 同樣使用 named volume 來保存 RabbitMQ 的資料
       - rabbitmq-data:/var/lib/rabbitmq
+    depends_on:
+      - mysql_db
+    # healthcheck:
+    #   # rabbitmq-diagnostics check_aliveness 是個輕量級的存活檢查
+    #   test: ["CMD-SHELL", "rabbitmq-diagnostics check_aliveness /"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
+
 
 # 在這裡統一宣告我們要使用的 "named volumes"
 volumes:
