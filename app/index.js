@@ -55,6 +55,27 @@ app.get('/', async (req, res) => {
     `);
 });
 
+app.get('/health', async (req, res) => {
+    try {
+        // 1. 檢查資料庫連線
+        const dbConnection = await mysql.createConnection(dbConfig);
+        await dbConnection.ping();
+        await dbConnection.end();
+
+        // 2. 檢查 RabbitMQ 連線
+        const rabbitConnection = await amqp.connect(rabbitmqConfig);
+        await rabbitConnection.close();
+
+        // 如果所有檢查都通過，回報健康狀態
+        res.status(200).json({ status: 'ok', message: 'All services are healthy.' });
+
+    } catch (error) {
+        // 如果任何一個檢查失敗，回報服務不可用
+        console.error('Health check failed:', error.message);
+        res.status(503).json({ status: 'error', message: `A service is unhealthy: ${error.message}` });
+    }
+});
+
 // 啟動我們的網頁伺服器
 app.listen(PORT, () => {
     console.log(`CWLF backend app listening on port ${PORT}`);
