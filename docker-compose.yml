@@ -4,7 +4,7 @@ services:
     # build: 告訴 Docker Compose 不要去網路上下載 image，
     # 而是根據 ./app 資料夾裡的 Dockerfile 來「自己建立」一個 image
     build: ./app
-    container_name: cwolf-app-compose
+    container_name: cwlf-app-compose
     ports:
       # 將我們電腦的 3000 port 連接到容器的 3000 port
       - "3000:3000"
