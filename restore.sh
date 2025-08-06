@@ -3,7 +3,7 @@
 # 腳本需要一個參數：要還原的備份檔案路徑
 BACKUP_FILE=$1
 # UAT 環境的 MySQL 容器名稱
-CONTAINER_NAME="mysql-uat"
+CONTAINER_NAME="mysql-compose"
 
 # 檢查是否提供了備份檔案
 if [ -z "$BACKUP_FILE" ]; then
