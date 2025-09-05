@@ -1,0 +1,42 @@
+from app import db
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
+from datetime import datetime, date
+
+class Kids(db.Model):
+    __tablename__ = 'd_kids'
+
+    member_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    family_id = db.Column(UUID(as_uuid=True), nullable=False)
+    gender = db.Column(db.String(24), nullable=False)  # male, female, other, unknow
+    id_last4 = db.Column(db.Integer, nullable=True)
+    BRD = db.Column(db.Date, nullable=False)  # Birthday
+    create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __init__(self, family_id, gender, id_last4, BRD):
+        self.family_id = family_id
+        self.gender = gender
+        self.id_last4 = id_last4
+        self.BRD = BRD
+
+    def __repr__(self):
+        return f'<Kids member_id={self.member_id}, family_id={self.family_id}, gender={self.gender}>'
+
+    @property
+    def age(self):
+        """計算年齡"""
+        today = date.today()
+        return today.year - self.BRD.year - ((today.month, today.day) < (self.BRD.month, self.BRD.day))
+
+    def to_dict(self):
+        return {
+            'member_id': str(self.member_id),
+            'family_id': str(self.family_id),
+            'gender': self.gender,
+            'id_last4': self.id_last4,
+            'BRD': self.BRD.isoformat() if self.BRD else None,
+            'age': self.age,
+            'create_date': self.create_date.isoformat() if self.create_date else None,
+            'update_date': self.update_date.isoformat() if self.update_date else None
+        }
