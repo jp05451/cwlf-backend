@@ -259,7 +259,7 @@ def process_single_record(row_data):
             child_birth = row_data.get(f'兒童{i}-出生年月日', '').strip()
             
             if child_name and child_birth:
-                child_id = get_or_create_child(family_id, child_gender, child_birth)
+                child_id = get_or_create_child(family_id, child_name, child_gender, child_birth)
                 print(f"處理兒童{i}: {child_name} -> {child_id}")
         
         # 提交這筆記錄的變更
@@ -336,9 +336,9 @@ def get_or_create_parent(family_id, parent_name, phone, addr):
         print(f"建立家長記錄時發生錯誤: {e}")
         raise e
 
-def get_or_create_child(family_id, gender, birth_str):
+def get_or_create_child(family_id, child_name, gender, birth_str):
     """取得或建立兒童記錄"""
-    if not birth_str:
+    if not birth_str or not child_name:
         return None
     
     try:
@@ -348,18 +348,16 @@ def get_or_create_child(family_id, gender, birth_str):
             print(f"無法解析生日: {birth_str}")
             return None
         
-        # 檢查是否已存在相同生日和家庭的兒童
+        # 檢查是否已存在相同姓名、生日和家庭的兒童
         existing_child = Kids.query.filter_by(
             family_id=family_id,
+            kids_name=child_name,
             BRD=birth_date
         ).first()
         
         if existing_child:
-            print(f"兒童已存在: {birth_date} in family {family_id}")
+            print(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
             return existing_child.member_id
-        
-        # 產生身分證後四碼（模擬）
-        id_last4 = abs(hash(str(birth_date))) % 10000
         
         # 標準化性別
         gender_map = {'男': 'male', '女': 'female'}
@@ -369,7 +367,7 @@ def get_or_create_child(family_id, gender, birth_str):
         kid = Kids(
             family_id=family_id,
             gender=gender,
-            id_last4=None,
+            kids_name=child_name,
             BRD=birth_date
         )
         
@@ -384,7 +382,7 @@ def get_or_create_child(family_id, gender, birth_str):
         )
         db.session.add(family_relation)
         
-        print(f"新增兒童: {birth_date}")
+        print(f"新增兒童: {child_name} ({birth_date})")
         return kid.member_id
         
     except Exception as e:
@@ -499,6 +497,7 @@ def process_single_signin_record(row_data):
             if child_birth:
                 child_id = get_or_create_child_from_signin(
                     family_id, 
+                    child_data['name'],
                     child_data['gender'], 
                     child_birth
                 )
@@ -626,24 +625,22 @@ def get_or_create_family_by_guardian(guardian_name, phone):
         print(f"建立新家庭: {new_family_id}")
         return new_family_id
 
-def get_or_create_child_from_signin(family_id, gender, birth_date):
+def get_or_create_child_from_signin(family_id, child_name, gender, birth_date):
     """從簽到資料取得或建立兒童記錄"""
-    if not birth_date:
+    if not birth_date or not child_name:
         return None
     
     try:
-        # 檢查是否已存在相同生日和家庭的兒童
+        # 檢查是否已存在相同姓名、生日和家庭的兒童
         existing_child = Kids.query.filter_by(
             family_id=family_id,
+            kids_name=child_name,
             BRD=birth_date
         ).first()
         
         if existing_child:
-            print(f"兒童已存在: {birth_date} in family {family_id}")
+            print(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
             return existing_child.member_id
-        
-        # 產生身分證後四碼（模擬）
-        id_last4 = abs(hash(str(birth_date) + str(family_id))) % 10000
         
         # 標準化性別
         gender_map = {'男': 'male', '女': 'female'}
@@ -653,7 +650,7 @@ def get_or_create_child_from_signin(family_id, gender, birth_date):
         kid = Kids(
             family_id=family_id,
             gender=gender,
-            id_last4=None,
+            kids_name=child_name,
             BRD=birth_date
         )
         
@@ -668,7 +665,7 @@ def get_or_create_child_from_signin(family_id, gender, birth_date):
         )
         db.session.add(family_relation)
         
-        print(f"新增兒童: {birth_date}")
+        print(f"新增兒童: {child_name} ({birth_date})")
         return kid.member_id
         
     except Exception as e:
