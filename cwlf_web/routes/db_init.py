@@ -8,7 +8,6 @@ from models.event import EventInfo, EnvUsage, EventParticipate
 from config import Config
 from datetime import datetime, date
 from flask import Blueprint, request, jsonify
-import hashlib
 import csv
 import uuid
 
@@ -61,10 +60,10 @@ def process_single_event_record(row_data):
             return False
         
         # 處理是否需要報名
-        register_necessary = register_necessary_str == '是'
+        register_necessary = (register_necessary_str == '是')
         # 處理前置活動需求
-        prior_event_id = get_prior_event_id(prior_event_name)
-        
+        prior_category = prior_event_name if prior_event_name else "無"
+
         # 取得預設站點ID (假設有一個預設站點)
         station_id = get_default_station_id()
         # 解析活動時間
@@ -81,7 +80,7 @@ def process_single_event_record(row_data):
             event_name=event_name,
             event_category=event_category,
             event_description=event_description if event_description else None,
-            prior_event_id=prior_event_id,
+            prior_category=prior_category,
             station_id=station_id,
             register_necessary=register_necessary,
             event_start_date=event_start_date,
@@ -98,32 +97,6 @@ def process_single_event_record(row_data):
         print(f"處理活動記錄時發生錯誤: {e}")
         db.session.rollback()
         return False
-
-def get_prior_event_id(prior_event_name):
-    """取得前置活動ID"""
-    if not prior_event_name or prior_event_name == '無':
-        # 如果沒有前置活動，返回一個特殊的UUID (可以是null或預設值)
-        return None
-    
-    # 根據活動分類來查找前置活動
-    category_mapping = {
-        '回應式照顧家長團體-初階': None,
-        '回應式照顧家長團體-中階': '回應式照顧家長團體-初階',
-        '回應式照顧家長團體-進階': '回應式照顧家長團體-中階'
-    }
-    
-    if prior_event_name in category_mapping:
-        if category_mapping[prior_event_name] is None:
-            return None
-        else:
-            # 查找對應分類的任一活動ID
-            prior_event = EventInfo.query.filter_by(
-                event_category=category_mapping[prior_event_name]
-            ).first()
-            if prior_event:
-                return prior_event.event_id
-    
-    return None
 
 def get_default_station_id():
     """取得預設站點ID"""
@@ -275,11 +248,11 @@ def get_or_create_family_by_parent(parent_name, phone):
     """根據家長資訊取得或建立家庭"""
     # 先查詢是否已存在此家長
     clean_phone = ''.join(filter(str.isdigit, phone))
-    phone_int = int(clean_phone) if clean_phone else 0
+
     
     existing_parent = Parent.query.filter_by(
         parent_name=parent_name,
-        phone_num=phone_int
+        phone_num=clean_phone
     ).first()
     
     if existing_parent:
@@ -306,15 +279,13 @@ def get_or_create_parent(family_id, parent_name, phone, addr):
         return existing_parent.member_id
     
     try:
-        # 產生身分證後四碼（模擬）
-        id_last4 = abs(hash(parent_name + phone)) % 10000
+
         
         # 建立 Parent 記錄
         parent = Parent(
             family_id=family_id,
             parent_name=parent_name,
             phone_num=clean_phone,
-            id_last4=None,
             addr=addr
         )
         
@@ -480,7 +451,7 @@ def process_single_signin_record(row_data):
         signin_date = parse_signin_date(timestamp)
         
         # 取得或建立 family_id
-        family_id = get_or_create_family_by_guardian(guardian_name, phone)
+        family_id = get_or_create_family_by_parent(guardian_name, phone)
         
         # 處理主要監護人
         guardian_id = get_or_create_parent(family_id, guardian_name, phone, addr)
@@ -608,22 +579,6 @@ def convert_age_to_birth_date(age_str, signin_date):
             pass
         return None
     
-def get_or_create_family_by_guardian(guardian_name, phone):
-    """根據監護人資訊取得或建立家庭"""
-    clean_phone = ''.join(filter(str.isdigit, phone))
-    
-    existing_parent = Parent.query.filter_by(
-        parent_name=guardian_name,
-        phone_num=phone
-    ).first()
-    
-    if existing_parent:
-        print(f"找到現有家庭: {existing_parent.family_id}")
-        return existing_parent.family_id
-    else:
-        new_family_id = uuid.uuid4()
-        print(f"建立新家庭: {new_family_id}")
-        return new_family_id
 
 def get_or_create_child_from_signin(family_id, child_name, gender, birth_date):
     """從簽到資料取得或建立兒童記錄"""
@@ -766,10 +721,10 @@ def show_kids():
 @bp.route('/family_summary', methods=['GET'])
 def family_summary():
     """顯示家庭統計摘要"""
-    total_families = db.session.query(Parent.family_id).distinct().count()
-    total_parents = Parent.query.count()
-    total_kids = Kids.query.count()
-    
+    total_families = db.session.query(Family.family_id).distinct().count()
+    total_parents = db.session.query(Parent.member_id).distinct().count()
+    total_kids = db.session.query(Kids.member_id).distinct().count()
+
     return {
         'total_families': total_families,
         'total_parents': total_parents,

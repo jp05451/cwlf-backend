@@ -25,12 +25,6 @@ class Kids(db.Model):
     def __repr__(self):
         return f'<Kids member_id={self.member_id}, family_id={self.family_id}, gender={self.gender}, kids_name={self.kids_name}>'
 
-    @property
-    def age(self):
-        """計算年齡"""
-        today = date.today()
-        return today.year - self.BRD.year - ((today.month, today.day) < (self.BRD.month, self.BRD.day))
-
     def to_dict(self):
         return {
             'member_id': str(self.member_id),
@@ -38,7 +32,6 @@ class Kids(db.Model):
             'gender': self.gender,
             'kids_name': self.kids_name,
             'BRD': self.BRD.isoformat() if self.BRD else None,
-            'age': self.age,
             'create_date': self.create_date.isoformat() if self.create_date else None,
             'update_date': self.update_date.isoformat() if self.update_date else None
         }

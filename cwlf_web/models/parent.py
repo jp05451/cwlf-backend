@@ -10,17 +10,15 @@ class Parent(db.Model):
     family_id = db.Column(UUID(as_uuid=True), nullable=False)
     parent_name = db.Column(db.String(24), nullable=False)
     phone_num = db.Column(db.String(24), nullable=False)
-    id_last4 = db.Column(db.String(24), nullable=True)
     gender = db.Column(db.String(24), nullable=True)  # male, female, other, unknow
     addr = db.Column(db.Text, nullable=True)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, family_id, parent_name, phone_num, id_last4=None, gender=None, addr=None):
+    def __init__(self, family_id, parent_name, phone_num, gender=None, addr=None):
         self.family_id = family_id
         self.parent_name = parent_name
         self.phone_num = phone_num
-        self.id_last4 = id_last4
         self.gender = gender
         self.addr = addr
 
@@ -33,7 +31,6 @@ class Parent(db.Model):
             'family_id': str(self.family_id),
             'parent_name': self.parent_name,
             'phone_num': self.phone_num,
-            'id_last4': self.id_last4,
             'gender': self.gender,
             'addr': self.addr,
             'create_date': self.create_date.isoformat() if self.create_date else None,

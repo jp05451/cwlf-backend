@@ -10,8 +10,7 @@ class EventInfo(db.Model):
     event_name = db.Column(db.String(64), nullable=False)
     event_category = db.Column(db.String(24), nullable=False)  # 保持原規格拼字
     event_description = db.Column(db.Text, nullable=True)
-    
-    prior_event_id = db.Column(UUID(as_uuid=True), nullable=True) # FK需先參加過哪一類活動
+    prior_category = db.Column(db.String(24), nullable=True)  # 須參加的前置活動類別
     station_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK主辦單位
     register_necessary = db.Column(db.Boolean, nullable=False)  # 是否需註冊
     event_start_date = db.Column(db.DateTime, nullable=False)
@@ -19,11 +18,11 @@ class EventInfo(db.Model):
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, event_name, event_category, station_id, register_necessary, event_start_date, event_end_date, event_description=None, prior_event_id=None):
+    def __init__(self, event_name, event_category, station_id, register_necessary, event_start_date, event_end_date, event_description=None, prior_category=None):
         self.event_name = event_name
         self.event_category = event_category
         self.event_description = event_description
-        self.prior_event_id = prior_event_id
+        self.prior_category = prior_category
         self.station_id = station_id
         self.register_necessary = register_necessary
         self.event_start_date = event_start_date
