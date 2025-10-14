@@ -11,20 +11,15 @@ from datetime import datetime, date
 from flask import Blueprint, request, jsonify,render_template
 import csv
 import uuid
-
 from werkzeug.utils import secure_filename
 
-
-
-
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
+
 # import config
 config = Config()
 
 
-@bp.route('/', methods=['GET'])
-def index():
-    return render_template('index.html')
+
 
 
 # 確保上傳目錄存在
@@ -34,6 +29,9 @@ os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
+@bp.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
 @bp.route('/upload', methods=['POST'])
 def upload_file():
