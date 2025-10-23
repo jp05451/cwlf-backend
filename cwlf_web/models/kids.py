@@ -20,7 +20,7 @@ class Kids(db.Model):
         self.gender = gender
         self.kids_name = kids_name
         #self.id_last4 = id_last4
-        self.BRD = BRD
+        self.BRD = BRD # Birthday
 
     def __repr__(self):
         return f'<Kids member_id={self.member_id}, family_id={self.family_id}, gender={self.gender}, kids_name={self.kids_name}>'

@@ -26,6 +26,7 @@ def parse_event_info_data():
         reader = csv.DictReader(file)
         
         for row_index, row in enumerate(reader):
+            # enumerate returns a tuple (index, row)
             print(f"處理第 {row_index + 1} 行")
             
             # 跳過說明行和空行
