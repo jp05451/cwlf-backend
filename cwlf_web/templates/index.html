@@ -92,21 +92,14 @@
                 const statusMessage = document.getElementById('statusMessage');
 
                 uploadBtn.addEventListener('click', function() {
-                    console.log('Upload button clicked');
                     const file = fileInput.files[0];
-                    
                     if (!file) {
-                        console.log('沒有選擇檔案');
                         statusMessage.textContent = 'Please select a file first';
                         return;
                     }
-
                     const formData = new FormData();
                     formData.append('file', file);
-
                     const xhr = new XMLHttpRequest();
-
-                    // Progress tracking
                     xhr.upload.addEventListener('progress', function(e) {
                         if (e.lengthComputable) {
                             const percentComplete = (e.loaded / e.total) * 100;
@@ -114,38 +107,60 @@
                             progressBar.textContent = Math.round(percentComplete) + '%';
                         }
                     });
-
-                    // Upload completion
                     xhr.addEventListener('load', function() {
                         if (xhr.status === 200) {
-                            statusMessage.textContent = 'File uploaded successfully!';
+                            statusMessage.textContent = 'File uploaded successfully! 處理中...';
                             statusMessage.className = 'success';
+                            progressBar.style.width = '0%';
+                            // 檔案上傳成功後，呼叫後端進行資料處理
+                            processUploadedFile(JSON.parse(xhr.responseText).filename);
                         } else {
                             statusMessage.textContent = 'Upload failed: ' + xhr.statusText;
                             statusMessage.className = 'error';
+                            progressBar.style.width = '0%';
                         }
-                        progressBar.style.width = '0%';
                     });
-
-                    // Error handling
                     xhr.addEventListener('error', function() {
                         statusMessage.textContent = 'Upload error occurred';
                         statusMessage.className = 'error';
                         progressBar.style.width = '0%';
                     });
-
-                    // Start upload
                     xhr.open('POST', '/upload');
                     xhr.send(formData);
-                    
                     statusMessage.textContent = 'Uploading...';
                     statusMessage.className = '';
                 });
+
+                function processUploadedFile(filename) {
+                    statusMessage.textContent = '正在處理資料...';
+                    statusMessage.className = '';
+                    fetch('/process_uploaded_file', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ filename })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            statusMessage.textContent = '資料處理完成！';
+                            statusMessage.className = 'success';
+                        } else {
+                            statusMessage.textContent = '資料處理失敗: ' + (data.error || '未知錯誤');
+                            statusMessage.className = 'error';
+                        }
+                    })
+                    .catch(err => {
+                        statusMessage.textContent = '資料處理時發生錯誤';
+                        statusMessage.className = 'error';
+                    });
+                }
             });
         </script>
     </main>
     <footer>
-        <p>&copy; 2025 Your Company. All rights reserved.</p>
+        <p>&copy; 2025 cwlf tcross project. All rights reserved.</p>
     </footer>
 </body>
 </html>

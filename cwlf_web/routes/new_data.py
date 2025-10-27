@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from models.kids import Kids
 from models.parent import Parent
 from models.station import Station
+from models.log import LogEntry
 from models.family import Family
 from models.event import EventInfo, EnvUsage, EventParticipate
 from config import Config
@@ -15,12 +16,9 @@ from werkzeug.utils import secure_filename
 
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
 
+
 # import config
 config = Config()
-
-
-
-
 
 # 確保上傳目錄存在
 os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
@@ -29,23 +27,209 @@ os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
+def parse_time(timestamp_str):
+    """解析簽到時間戳記"""
+    if not timestamp_str:
+        return None
+    
+    try:
+        # 嘗試不同的日期格式
+        for fmt in ['%Y/%m/%d 上午 %H:%M:%S', '%Y/%m/%d 下午 %H:%M:%S', 
+                   '%Y/%m/%d', '%m/%d', '%Y/%m/%d 上午', '%Y/%m/%d 下午']:
+            try:
+                if '下午' in timestamp_str and '12:' not in timestamp_str:
+                    # 處理下午時間，需要加12小時
+                    timestamp_str = timestamp_str.replace('下午', '').strip()
+                    if ':' in timestamp_str:
+                        time_part = timestamp_str.split()[-1]
+                        if ':' in time_part:
+                            hour = int(time_part.split(':')[0])
+                            if hour < 12:
+                                timestamp_str = timestamp_str.replace(f'{hour}:', f'{hour+12}:')
+                
+                timestamp_str = timestamp_str.replace('上午', '').replace('下午', '').strip()
+                return datetime.strptime(timestamp_str, fmt.replace(' 上午', '').replace(' 下午', ''))
+            except ValueError:
+                continue
+        
+        # 如果都失敗，回傳今天的日期
+        return date.today()
+    except:
+        return date.today()
+def process_birthdate(birth_str):
+    try:
+        birth_date = datetime.strptime(birth_str, '%Y/%m/%d').date()
+        return birth_date
+    except ValueError:
+        return None
+def get_family_by_parent(parent_name, phone):
+    """根據家長資訊取得"""
+    # 先查詢是否已存在此家長
+    clean_phone = ''.join(filter(str.isdigit, phone))
+
+    existing_parent = Parent.query.filter_by(
+        parent_name=parent_name,
+        phone_num=clean_phone
+    ).first()
+    
+    if existing_parent:
+        print(f"找到現有家庭: {existing_parent.family_id}")
+        return existing_parent.family_id
+    else:
+
+        return None
+
+def process_single_signin_record(row):
+    timestamp = parse_time(row[0])
+    station_name = row[1]
+    parents_name = []
+    parents_phone = []
+    kids_name=[]
+    kids_birth=[]
+    for i in range(2,10,2):
+        if(i==6):
+            i+=1
+        parent_name = row[i]
+        parent_phone = row[i+1]
+        if parent_name.strip() != '' and parent_phone.strip() != '':
+            parents_name.append(parent_name)
+            parents_phone.append(parent_phone)
+    for i in range(11,28,3):
+        kid_name = row[i]
+        kid_birth = process_birthdate(row[i+1])
+        if kid_name.strip() != '':
+            kids_name.append(kid_name)
+            kids_birth.append(kid_birth)
+    family_id = get_family_by_parent(parents_name[0], parents_phone[0])
+    print(f"Timestamp: {timestamp}")
+    print(f"Station Name: {station_name}")
+    print(f"Parents: {list(zip(parents_name, parents_phone))}")
+    print(f"Kids: {list(zip(kids_name, kids_birth))}")
+    if not family_id:
+        print("找不到對應的家庭，跳過此筆資料")
+        return
+    #確保不要重複簽到
+    if EnvUsage.query.filter_by(family_id=family_id, enter_time=timestamp).first():
+        print("此家庭已存在相同簽到時間，跳過此筆資料")
+        return
+    env_usage=EnvUsage(family_id=family_id, enter_time=timestamp)
+    visit_log=LogEntry(visit_time=timestamp, station_name=station_name, parent_names=parents_name, phone_nums=parents_phone, kid_names=kids_name, kid_birthdays=kids_birth)
+    db.session.add(env_usage)
+    db.session.add(visit_log)
+    db.session.commit()
+    return
+def process_single_register_record(row):
+    existed_family = False
+    timestamp = parse_time(row[0])
+    station_name = row[1]
+    address=row[41]
+    gendermap = {
+        '生理男': 'male',
+        '生理女': 'female'
+    }
+    rolemap = {
+        '父母親': 'parent',
+        '(外)祖父母': 'grandparent',
+    }
+    parents_name = []
+    parents_gender = []
+    parents_role = []
+    parents_phone = []
+    kids_name=[]
+    kids_birth=[]
+    kids_gender=[]
+    family_id = get_family_by_parent(row[2], row[5])
+    if(family_id):
+        print(f"家庭已存在: {family_id}")
+    else:
+        family_id = uuid.uuid4()
+    for i in range(2,18,4):
+        if(i==10):
+            i+=1
+        parent_name = row[i]
+        parent_gender= row[i+1]
+        parent_role= row[i+2]
+        parent_phone = row[i+3]
+        if parent_name.strip() != '' and parent_phone.strip() != '' and parent_gender.strip() != '' and parent_role.strip() != '':
+            parents_name.append(parent_name)
+            parents_phone.append(parent_phone)
+            parents_gender.append(gendermap.get(parent_gender.strip(), 'unknown'))
+            parents_role.append(rolemap.get(parent_role.strip(), 'other'))
+            existed_parent = Parent.query.filter_by(
+            parent_name=parent_name,
+            phone_num=''.join(filter(str.isdigit, parent_phone))
+            ).first()
+            if existed_parent:
+                print(f"家長已存在，跳過新增: {parent_name}, {parent_phone}")
+                continue
+            parent=Parent(family_id=family_id, parent_name=parent_name, 
+                          register_station=station_name,
+                          gender=gendermap.get(parent_gender.strip(), 'unknown'), 
+                          addr=address,
+                          phone_num=''.join(filter(str.isdigit, parent_phone)))
+            db.session.add(parent)
+            db.session.flush()
+            family_relation=Family(family_id=family_id, member_id=parent.member_id,member_role=rolemap.get(parent_role.strip(), 'other'))
+            db.session.add(family_relation)
+    for i in range(19,39,3):
+        #  如果開頭是是否還有其他...
+        if row[i].startswith('是否還有其他'):
+            i+=1
+        kid_name = row[i]
+        kid_birth = process_birthdate(row[i+1])
+        kid_gender = gendermap.get(row[i+2].strip(), 'unknown')
+        if kid_name.strip() != '' and kid_birth is not None and kid_gender is not None:
+            kids_name.append(kid_name)
+            kids_birth.append(kid_birth)
+            kids_gender.append(kid_gender)
+            existed_kid = Kids.query.filter_by(
+                family_id=family_id,
+                kids_name=kid_name,
+                BRD=kid_birth
+            ).first()
+            if existed_kid:
+                print(f"小孩已存在，跳過新增: {kid_name}, {kid_birth}")
+                continue
+            kid=Kids(family_id=family_id, kids_name=kid_name, BRD=kid_birth, gender=kid_gender)
+            db.session.add(kid)
+            db.session.flush()
+            family_relation=Family(family_id=family_id, member_id=kid.member_id,member_role='kid')
+            db.session.add(family_relation)
+    print(f"Timestamp: {timestamp}")
+    print(f"Station Name: {station_name}")
+    print(f"Address: {address}")
+    print(f"Parents: {list(zip(parents_name, parents_gender, parents_role, parents_phone))}")
+    print(f"Kids: {list(zip(kids_name, kids_birth, kids_gender))}")
+    db.session.commit()
+    return
+def process_file(filepath):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            #跳過第一行
+            if reader.line_num == 1:
+                continue
+            if(len(row) == 47):
+                process_single_register_record(row)
+            if(len(row) == 28):
+                print(f"process_single_signin_record:{row}")
+                process_single_signin_record(row)
+    # remove file
+    #os.remove(filepath)
+    return
 @bp.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
+
 
 @bp.route('/upload', methods=['POST'])
 def upload_file():
     # 檢查請求中是否有檔案
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
     file = request.files['file']
-    
-    # 檢查是否有選擇檔案
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
-    # 檢查檔案類型（可選）
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(config.UPLOAD_FOLDER, filename)
@@ -56,3 +240,20 @@ def upload_file():
         }), 200
     else:
         return jsonify({'error': 'File type not allowed'}), 400
+
+# 新增：處理上傳檔案的 route
+@bp.route('/process_uploaded_file', methods=['POST'])
+def process_uploaded_file():
+    data = request.get_json()
+    filename = data.get('filename')
+    if not filename:
+        return jsonify({'success': False, 'error': 'No filename provided'}), 400
+    filepath = os.path.join(config.UPLOAD_FOLDER, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'success': False, 'error': 'File not found'}), 404
+    try:
+        print(f"正在處理檔案: {filepath}")
+        process_file(filepath)
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

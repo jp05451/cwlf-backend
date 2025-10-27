@@ -489,12 +489,14 @@ def process_single_signin_record(row_data):
                 print(f"處理兒童{idx+1}: {child_data['name']} -> {child_id}")
                 
         # 建立環境使用記錄
-        
-        event_usage = EnvUsage(
-            family_id=family_id,
-            enter_time=signin_date
-        )
-        db.session.add(event_usage)
+        if EnvUsage.query.filter_by(family_id=family_id, enter_time=timestamp).first():
+            print("此家庭已存在相同簽到時間，跳過此筆資料")
+        else:
+            event_usage = EnvUsage(
+                family_id=family_id,
+                enter_time=signin_date
+            )
+            db.session.add(event_usage)
         # 提交這筆記錄的變更
         db.session.commit()
         return True
