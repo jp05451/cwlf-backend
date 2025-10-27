@@ -37,7 +37,7 @@ class EventInfo(db.Model):
             'event_name': self.event_name,
             'event_category': self.event_category,
             'event_description': self.event_description,
-            'prior_event_id': str(self.prior_event_id) if self.prior_event_id else None,
+            'prior_category': self.prior_category,
             'station_id': str(self.station_id),
             'register_necessary': self.register_necessary,
             'event_start_date': self.event_start_date.isoformat() if self.event_start_date else None,
@@ -51,34 +51,23 @@ class EnvUsage(db.Model):
     __tablename__ = 'd_env_usage'
 
     env_usage_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    member_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK成員ID
+    family_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK家庭ID
     enter_time = db.Column(db.DateTime, nullable=False)
-    leave_time = db.Column(db.DateTime, nullable=False)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, member_id, enter_time, leave_time):
-        self.member_id = member_id
+    def __init__(self, family_id, enter_time):
+        self.family_id = family_id
         self.enter_time = enter_time
-        self.leave_time = leave_time
 
     def __repr__(self):
-        return f'<EnvUsage env_usage_id={self.env_usage_id}, member_id={self.member_id}>'
-
-    @property
-    def duration_minutes(self):
-        """計算使用時長（分鐘）"""
-        if self.enter_time and self.leave_time:
-            return int((self.leave_time - self.enter_time).total_seconds() / 60)
-        return 0
+        return f'<EnvUsage env_usage_id={self.env_usage_id}, family_id={self.family_id}>'
 
     def to_dict(self):
         return {
             'env_usage_id': str(self.env_usage_id),
-            'member_id': str(self.member_id),
+            'family_id': str(self.family_id),
             'enter_time': self.enter_time.isoformat() if self.enter_time else None,
-            'leave_time': self.leave_time.isoformat() if self.leave_time else None,
-            'duration_minutes': self.duration_minutes,
             'create_date': self.create_date.isoformat() if self.create_date else None,
             'update_date': self.update_date.isoformat() if self.update_date else None
         }

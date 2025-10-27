@@ -4,6 +4,7 @@ from models.kids import Kids
 from models.parent import Parent
 from models.station import Station
 from models.family import Family
+from models.log import LogEntry
 from models.event import EventInfo, EnvUsage, EventParticipate
 from config import Config
 from datetime import datetime, date
@@ -264,7 +265,7 @@ def get_or_create_family_by_parent(parent_name, phone):
         print(f"建立新家庭: {new_family_id}")
         return new_family_id
 
-def get_or_create_parent(family_id, parent_name, phone, addr):
+def get_or_create_parent(family_id, parent_name, phone, addr, gender='unknow'):
     """取得或建立家長記錄"""
     clean_phone = ''.join(filter(str.isdigit, phone))
     
@@ -286,7 +287,9 @@ def get_or_create_parent(family_id, parent_name, phone, addr):
             family_id=family_id,
             parent_name=parent_name,
             phone_num=clean_phone,
-            addr=addr
+            addr=addr,
+            gender=gender,
+            register_station='萬華站' # 預設站點
         )
         
         db.session.add(parent)
@@ -394,7 +397,11 @@ def parse_sign_in_data():
             if not row or len(row) < 18:
                 print(f"跳過第 {row_index + 1} 行 - 資料不完整")
                 continue
-            
+            #跳過說明
+            if (row[0] == '說明' or row[0] == '欄位'):
+                print(f"跳過第 {row_index + 1} 行")
+                continue
+
             # 使用單筆簽到記錄處理函數
             success = process_single_signin_record(row)
             if success:
@@ -419,7 +426,14 @@ def process_single_signin_record(row_data):
         phone = row_data[8].strip() if len(row_data) > 8 else ''
         is_member = row_data[9].strip() if len(row_data) > 9 else ''
         addr = row_data[10].strip() if len(row_data) > 10 else ''
-        
+        if(guardian_gender == '男'):
+            guardian_gender='male'
+        else:
+            guardian_gender='female'
+        if(guardian2_gender == '男'):
+            guardian2_gender='male'
+        else:
+            guardian2_gender='female'
         # 兒童資料從第11欄開始，每3欄一組 (姓名、性別、年齡/生日)
         children_data = []
         for i in range(11, min(len(row_data), 20), 3):
@@ -447,19 +461,19 @@ def process_single_signin_record(row_data):
             print(f"無效的電話號碼，跳過此記錄")
             return False
         
-        # 取得簽到日期，用於計算生日
-        signin_date = parse_signin_date(timestamp)
+        # 取得簽到時間
+        signin_date = parse_signin_time(timestamp)
         
         # 取得或建立 family_id
         family_id = get_or_create_family_by_parent(guardian_name, phone)
         
         # 處理主要監護人
-        guardian_id = get_or_create_parent(family_id, guardian_name, phone, addr)
+        guardian_id = get_or_create_parent(family_id, guardian_name, phone, addr, guardian_gender)
         print(f"處理監護人: {guardian_name} -> {guardian_id}")
         
         # 處理第二監護人（如果存在）
         if guardian2_name and guardian2_name.strip():
-            guardian2_id = get_or_create_parent(family_id, guardian2_name, phone, addr)
+            guardian2_id = get_or_create_parent(family_id, guardian2_name, phone, addr, guardian2_gender)
             print(f"處理第二監護人: {guardian2_name} -> {guardian2_id}")
         
         # 處理兒童資料
@@ -473,7 +487,14 @@ def process_single_signin_record(row_data):
                     child_birth
                 )
                 print(f"處理兒童{idx+1}: {child_data['name']} -> {child_id}")
+                
+        # 建立環境使用記錄
         
+        event_usage = EnvUsage(
+            family_id=family_id,
+            enter_time=signin_date
+        )
+        db.session.add(event_usage)
         # 提交這筆記錄的變更
         db.session.commit()
         return True
@@ -483,7 +504,7 @@ def process_single_signin_record(row_data):
         db.session.rollback()
         return False
 
-def parse_signin_date(timestamp_str):
+def parse_signin_time(timestamp_str):
     """解析簽到時間戳記"""
     if not timestamp_str:
         return None
@@ -504,7 +525,7 @@ def parse_signin_date(timestamp_str):
                                 timestamp_str = timestamp_str.replace(f'{hour}:', f'{hour+12}:')
                 
                 timestamp_str = timestamp_str.replace('上午', '').replace('下午', '').strip()
-                return datetime.strptime(timestamp_str, fmt.replace(' 上午', '').replace(' 下午', '')).date()
+                return datetime.strptime(timestamp_str, fmt.replace(' 上午', '').replace(' 下午', ''))
             except ValueError:
                 continue
         
@@ -717,6 +738,11 @@ def show_parent():
 def show_kids():
     kids = Kids.query.all()
     return [kid.to_dict() for kid in kids]
+
+@bp.route('/show_env_usage', methods=['GET'])
+def show_env_usage():
+    env_usages = EnvUsage.query.all()
+    return [env_usage.to_dict() for env_usage in env_usages]
 
 @bp.route('/family_summary', methods=['GET'])
 def family_summary():

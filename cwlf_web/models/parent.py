@@ -11,16 +11,18 @@ class Parent(db.Model):
     parent_name = db.Column(db.String(24), nullable=False)
     phone_num = db.Column(db.String(24), nullable=False)
     gender = db.Column(db.String(24), nullable=True)  # male, female, other, unknow
+    register_station = db.Column(db.String(64), nullable=True)
     addr = db.Column(db.Text, nullable=True)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, family_id, parent_name, phone_num, gender=None, addr=None):
+    def __init__(self, family_id, parent_name, phone_num, gender=None, addr=None, register_station=None):
         self.family_id = family_id
         self.parent_name = parent_name
         self.phone_num = phone_num
         self.gender = gender
         self.addr = addr
+        self.register_station = register_station
 
     def __repr__(self):
         return f'<Parent member_id={self.member_id}, name={self.parent_name}, phone={self.phone_num}>'
@@ -33,6 +35,7 @@ class Parent(db.Model):
             'phone_num': self.phone_num,
             'gender': self.gender,
             'addr': self.addr,
+            'register_station': self.register_station,
             'create_date': self.create_date.isoformat() if self.create_date else None,
             'update_date': self.update_date.isoformat() if self.update_date else None
         }
