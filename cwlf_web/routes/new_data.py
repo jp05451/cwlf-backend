@@ -10,6 +10,7 @@ from models.event import EventInfo, EnvUsage, EventParticipate
 from config import Config
 from datetime import datetime, date
 from flask import Blueprint, request, jsonify,render_template
+import re
 import csv
 import uuid
 from werkzeug.utils import secure_filename
@@ -29,32 +30,53 @@ def allowed_file(filename):
 
 def parse_time(timestamp_str):
     """解析簽到時間戳記"""
+    temp = timestamp_str
     if not timestamp_str:
         return None
-    
+
     try:
-        # 嘗試不同的日期格式
-        for fmt in ['%Y/%m/%d 上午 %H:%M:%S', '%Y/%m/%d 下午 %H:%M:%S', 
-                   '%Y/%m/%d', '%m/%d', '%Y/%m/%d 上午', '%Y/%m/%d 下午']:
+        s = timestamp_str.strip()
+
+        # 處理中文上午/下午標記，僅調整時間部分的 hour
+        if ('下午' in s) or ('上午' in s):
+            is_pm = '下午' in s
+            # 移除中文標記後但保留日期與時間
+            s = s.replace('上午', '').replace('下午', '').strip()
+
+            # 找到時間片段 (H:MM:SS 或 H:MM)
+            m = re.search(r"(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?", s)
+            if m:
+                hour = int(m.group(1))
+                minute = int(m.group(2))
+                second = int(m.group(3)) if m.group(3) else 0
+                # 調整上午/下午邏輯
+                if is_pm and hour < 12:
+                    hour += 12
+                if (not is_pm) and hour == 12:
+                    hour = 0
+                new_time = f"{hour:02d}:{minute:02d}:{second:02d}"
+                # 只替換匹配的時間段，避免改到其他包含 '4:' 的位置
+                s = s[:m.start()] + new_time + s[m.end():]
+
+        # 嘗試常見格式
+        fmts = [
+            '%Y/%m/%d %H:%M:%S',
+            '%Y/%m/%d %H:%M',
+            '%Y/%m/%d',
+            '%m/%d',
+        ]
+        for fmt in fmts:
             try:
-                if '下午' in timestamp_str and '12:' not in timestamp_str:
-                    # 處理下午時間，需要加12小時
-                    timestamp_str = timestamp_str.replace('下午', '').strip()
-                    if ':' in timestamp_str:
-                        time_part = timestamp_str.split()[-1]
-                        if ':' in time_part:
-                            hour = int(time_part.split(':')[0])
-                            if hour < 12:
-                                timestamp_str = timestamp_str.replace(f'{hour}:', f'{hour+12}:')
-                
-                timestamp_str = timestamp_str.replace('上午', '').replace('下午', '').strip()
-                return datetime.strptime(timestamp_str, fmt.replace(' 上午', '').replace(' 下午', ''))
+                #print(f"嘗試解析時間戳記: {s} 使用格式: {fmt}")
+                return datetime.strptime(s, fmt)
             except ValueError:
                 continue
-        
-        # 如果都失敗，回傳今天的日期
+
+        # 如果都失敗，回傳今天的日期（保留原始輸入供除錯）
+        print(f"無法解析時間戳記: {temp} -> 經過預處理: {s}")
         return date.today()
-    except:
+    except Exception as e:
+        print(f"無法解析時間戳記: {temp} -> {e}")
         return date.today()
 def process_birthdate(birth_str):
     try:
@@ -73,7 +95,7 @@ def get_family_by_parent(parent_name, phone):
     ).first()
     
     if existing_parent:
-        print(f"找到現有家庭: {existing_parent.family_id}")
+        #print(f"找到現有家庭: {existing_parent.family_id}")
         return existing_parent.family_id
     else:
 
@@ -119,7 +141,6 @@ def process_single_signin_record(row):
     db.session.commit()
     return
 def process_single_register_record(row):
-    existed_family = False
     timestamp = parse_time(row[0])
     station_name = row[1]
     address=row[41]
@@ -206,13 +227,13 @@ def process_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
         for row in reader:
-            #跳過第一行
-            if reader.line_num == 1:
-                continue
             if(len(row) == 47):
+                if(row[0]=='時間戳記'):
+                    continue
                 process_single_register_record(row)
             if(len(row) == 28):
-                print(f"process_single_signin_record:{row}")
+                if(row[0]=='時間戳記'):
+                    continue
                 process_single_signin_record(row)
     # remove file
     #os.remove(filepath)
