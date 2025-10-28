@@ -12,6 +12,10 @@ import re
 from flask import Blueprint, request, jsonify
 import csv
 import uuid
+import logging
+
+# logger
+logger = logging.getLogger('cwlf')
 
 bp = Blueprint('db_init', __name__)
 
@@ -20,7 +24,7 @@ def parse_event_info_data():
     default_data_path = 'test/'
     event_info_data = f'{default_data_path}event_info.csv'
     
-    print(f"正在讀取檔案: {event_info_data}")
+    logger.info(f"正在讀取檔案: {event_info_data}")
     processed_rows = 0
     
     with open(event_info_data, 'r', encoding='utf-8') as file:
@@ -28,14 +32,14 @@ def parse_event_info_data():
         
         for row_index, row in enumerate(reader):
             # enumerate returns a tuple (index, row)
-            print(f"處理第 {row_index + 1} 行")
+            logger.info(f"處理第 {row_index + 1} 行")
             
             # 跳過說明行和空行
             if (not row.get('活動名稱') or 
                 row['活動名稱'] in ['活動名稱', '說明'] or
                 row.get('欄位') == '欄位' or
                 row['活動名稱'].strip() == ''):
-                print(f"跳過第 {row_index + 1} 行")
+                logger.info(f"跳過第 {row_index + 1} 行")
                 continue
             
             # 使用單筆活動資料處理函數
@@ -43,7 +47,7 @@ def parse_event_info_data():
             if success:
                 processed_rows += 1
     
-    print(f"成功處理 {processed_rows} 行資料，event_info.csv 資料導入完成")
+    logger.info(f"成功處理 {processed_rows} 行資料，event_info.csv 資料導入完成")
 
 def process_single_event_record(row_data):
     """處理單筆活動記錄"""
@@ -56,12 +60,12 @@ def process_single_event_record(row_data):
         register_necessary_str = str(row_data.get('是否需事先報名', '')).strip()
         event_start_time_str = str(row_data.get('活動起始時間', '')).strip()
         event_end_time_str = str(row_data.get('活動結束時間', '')).strip()
-        
-        print(f"處理活動資料: {event_name}, 分類: {event_category}")
+
+        logger.info(f"處理活動資料: {event_name}, 分類: {event_category}")
         if not event_name or not event_category:
-            print(f"缺少必要資料，跳過此記錄")
+            logger.warning(f"缺少必要資料，跳過此記錄")
             return False
-        
+
         # 處理是否需要報名
         register_necessary = (register_necessary_str == '是')
         # 處理前置活動需求
@@ -72,12 +76,12 @@ def process_single_event_record(row_data):
         # 解析活動時間
         event_start_date = parse_event_datetime(event_start_time_str)
         event_end_date = parse_event_datetime(event_end_time_str, is_end_time=True)
-        
+
         # 如果沒有結束時間，設定為開始時間加1.5小時
         if event_start_date and not event_end_date:
             from datetime import timedelta
             event_end_date = event_start_date + timedelta(hours=1, minutes=30)
-        
+
         # 建立 EventInfo 記錄
         event_info = EventInfo(
             event_name=event_name,
@@ -89,15 +93,15 @@ def process_single_event_record(row_data):
             event_start_date=event_start_date,
             event_end_date=event_end_date
         )
-        
+
         db.session.add(event_info)
         db.session.commit()
-        
-        print(f"新增活動: {event_name}")
+
+        logger.info(f"新增活動: {event_name}")
         return True
-        
+
     except Exception as e:
-        print(f"處理活動記錄時發生錯誤: {e}")
+        logger.exception(f"處理活動記錄時發生錯誤: {e}")
         db.session.rollback()
         return False
 
@@ -137,7 +141,7 @@ def parse_event_datetime(datetime_str, is_end_time=False):
             else:
                 # 開始時間設為當天 10:00
                 return datetime.combine(date_part, datetime.min.time().replace(hour=10))
-        
+
         # 嘗試不同的日期時間格式
         formats = [
             '%Y-%m-%d %H:%M:%S',
@@ -147,7 +151,7 @@ def parse_event_datetime(datetime_str, is_end_time=False):
             '%Y-%m-%d',
             '%Y/%m/%d'
         ]
-        
+
         for fmt in formats:
             try:
                 parsed_datetime = datetime.strptime(datetime_str, fmt)
@@ -160,12 +164,12 @@ def parse_event_datetime(datetime_str, is_end_time=False):
                 return parsed_datetime
             except ValueError:
                 continue
-        
-        print(f"無法解析時間格式: {datetime_str}")
+
+        logger.warning(f"無法解析時間格式: {datetime_str}")
         return None
-        
+
     except Exception as e:
-        print(f"解析時間時發生錯誤: {datetime_str} -> {e}")
+        logger.exception(f"解析時間時發生錯誤: {datetime_str} -> {e}")
         return None
 
 def parse_event_join_data():
@@ -173,20 +177,20 @@ def parse_event_join_data():
     default_data_path = 'test/'
     event_join_data = f'{default_data_path}event_join.csv'
     
-    print(f"正在讀取檔案: {event_join_data}")
+    logger.info(f"正在讀取檔案: {event_join_data}")
     processed_rows = 0
     
     with open(event_join_data, 'r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         
         for row_index, row in enumerate(reader):
-            print(f"處理第 {row_index + 1} 行")
+            logger.info(f"處理第 {row_index + 1} 行")
             
             # 跳過說明行和空行
             if (not row.get('活動名稱') or 
                 row['活動名稱'] in ['活動名稱', '說明'] or
                 row.get('欄位') == '欄位'):
-                print(f"跳過第 {row_index + 1} 行")
+                logger.info(f"跳過第 {row_index + 1} 行")
                 continue
             
             # 使用單筆資料處理函數
@@ -194,7 +198,7 @@ def parse_event_join_data():
             if success:
                 processed_rows += 1
     
-    print(f"成功處理 {processed_rows} 行資料，event_join.csv 資料導入完成")
+    logger.info(f"成功處理 {processed_rows} 行資料，event_join.csv 資料導入完成")
 
 def process_single_record(row_data):
     """處理單筆記錄"""
@@ -206,44 +210,44 @@ def process_single_record(row_data):
         parent2_name = row_data.get('家長2-姓名', '').strip()
         phone = row_data.get('聯絡電話', '').strip()
         addr = row_data.get('居住地', '').strip()
-        
-        print(f"處理資料: event={event_name}, parent1={parent1_name}, phone={phone}")
-        
+
+        logger.info(f"處理資料: event={event_name}, parent1={parent1_name}, phone={phone}")
+
         if not parent1_name or not phone or not event_name:
-            print(f"缺少必要資料，跳過此記錄")
+            logger.warning(f"缺少必要資料，跳過此記錄")
             return False
-        
+
         # 清理電話號碼
         phone = phone.replace('-', '').replace(' ', '')
-        
+
         # 取得或建立 family_id
         family_id = get_or_create_family_by_parent(parent1_name, phone)
-        
+
         # 處理家長1
         parent1_id = get_or_create_parent(family_id, parent1_name, phone, addr)
-        print(f"處理家長1: {parent1_name} -> {parent1_id}")
-        
+        logger.info(f"處理家長1: {parent1_name} -> {parent1_id}")
+
         # 處理家長2（如果存在）
         if parent2_name and parent2_name.strip():
             parent2_id = get_or_create_parent(family_id, parent2_name, phone, addr)
-            print(f"處理家長2: {parent2_name} -> {parent2_id}")
-        
+            logger.info(f"處理家長2: {parent2_name} -> {parent2_id}")
+
         # 處理兒童（最多4個）
         for i in range(1, 5):
             child_name = row_data.get(f'兒童{i}-姓名', '').strip()
             child_gender = row_data.get(f'兒童{i}-性別', '').strip()
             child_birth = row_data.get(f'兒童{i}-出生年月日', '').strip()
-            
+
             if child_name and child_birth:
                 child_id = get_or_create_child(family_id, child_name, child_gender, child_birth)
-                print(f"處理兒童{i}: {child_name} -> {child_id}")
-        
+                logger.info(f"處理兒童{i}: {child_name} -> {child_id}")
+
         # 提交這筆記錄的變更
         db.session.commit()
         return True
-        
+
     except Exception as e:
-        print(f"處理記錄時發生錯誤: {e}")
+        logger.exception(f"處理記錄時發生錯誤: {e}")
         db.session.rollback()
         return False
 
@@ -259,12 +263,12 @@ def get_or_create_family_by_parent(parent_name, phone):
     ).first()
     
     if existing_parent:
-        print(f"找到現有家庭: {existing_parent.family_id}")
+        logger.info(f"找到現有家庭: {existing_parent.family_id}")
         return existing_parent.family_id
     else:
         # 建立新的家庭ID
         new_family_id = uuid.uuid4()
-        print(f"建立新家庭: {new_family_id}")
+        logger.info(f"建立新家庭: {new_family_id}")
         return new_family_id
 
 def get_or_create_parent(family_id, parent_name, phone, addr, gender='unknow'):
@@ -278,7 +282,7 @@ def get_or_create_parent(family_id, parent_name, phone, addr, gender='unknow'):
     ).first()
     
     if existing_parent:
-        print(f"家長已存在: {parent_name}")
+        logger.info(f"家長已存在: {parent_name}")
         return existing_parent.member_id
     
     try:
@@ -296,7 +300,7 @@ def get_or_create_parent(family_id, parent_name, phone, addr, gender='unknow'):
         
         db.session.add(parent)
         db.session.flush()  # 取得 member_id
-        
+
         # 建立 Family 關聯記錄
         family_relation = Family(
             family_id=family_id,
@@ -304,12 +308,12 @@ def get_or_create_parent(family_id, parent_name, phone, addr, gender='unknow'):
             member_role='parent'
         )
         db.session.add(family_relation)
-        
-        print(f"新增家長: {parent_name}")
+
+        logger.info(f"新增家長: {parent_name}")
         return parent.member_id
         
     except Exception as e:
-        print(f"建立家長記錄時發生錯誤: {e}")
+        logger.exception(f"建立家長記錄時發生錯誤: {e}")
         raise e
 
 def get_or_create_child(family_id, child_name, gender, birth_str):
@@ -321,7 +325,7 @@ def get_or_create_child(family_id, child_name, gender, birth_str):
         # 解析生日
         birth_date = parse_birth_date(birth_str)
         if not birth_date:
-            print(f"無法解析生日: {birth_str}")
+            logger.warning(f"無法解析生日: {birth_str}")
             return None
         
         # 檢查是否已存在相同姓名、生日和家庭的兒童
@@ -332,7 +336,7 @@ def get_or_create_child(family_id, child_name, gender, birth_str):
         ).first()
         
         if existing_child:
-            print(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
+            logger.info(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
             return existing_child.member_id
         
         # 標準化性別
@@ -349,7 +353,7 @@ def get_or_create_child(family_id, child_name, gender, birth_str):
         
         db.session.add(kid)
         db.session.flush()  # 取得 member_id
-        
+
         # 建立 Family 關聯記錄
         family_relation = Family(
             family_id=family_id,
@@ -357,12 +361,12 @@ def get_or_create_child(family_id, child_name, gender, birth_str):
             member_role='kids'
         )
         db.session.add(family_relation)
-        
-        print(f"新增兒童: {child_name} ({birth_date})")
+
+        logger.info(f"新增兒童: {child_name} ({birth_date})")
         return kid.member_id
-        
+
     except Exception as e:
-        print(f"處理兒童資料時發生錯誤: {e}")
+        logger.exception(f"處理兒童資料時發生錯誤: {e}")
         raise e
 
 def parse_birth_date(birth_str):
@@ -386,22 +390,22 @@ def parse_sign_in_data():
     default_data_path = 'test/'
     sign_in_data = f'{default_data_path}sign_in.csv'
     
-    print(f"正在讀取檔案: {sign_in_data}")
+    logger.info(f"正在讀取檔案: {sign_in_data}")
     processed_rows = 0
     
     with open(sign_in_data, 'r', encoding='utf-8') as file:
         csv_reader = csv.reader(file)
         
         for row_index, row in enumerate(csv_reader):
-            print(f"處理第 {row_index + 1} 行")
+            logger.info(f"處理第 {row_index + 1} 行")
             
             # 跳過空行或無效行
             if not row or len(row) < 18:
-                print(f"跳過第 {row_index + 1} 行 - 資料不完整")
+                logger.info(f"跳過第 {row_index + 1} 行 - 資料不完整")
                 continue
             #跳過說明
             if (row[0] == '說明' or row[0] == '欄位'):
-                print(f"跳過第 {row_index + 1} 行")
+                logger.info(f"跳過第 {row_index + 1} 行")
                 continue
 
             # 使用單筆簽到記錄處理函數
@@ -409,7 +413,7 @@ def parse_sign_in_data():
             if success:
                 processed_rows += 1
     
-    print(f"成功處理 {processed_rows} 行資料，sign_in.csv 資料導入完成")
+    logger.info(f"成功處理 {processed_rows} 行資料，sign_in.csv 資料導入完成")
 
 def process_single_signin_record(row_data):
     """處理單筆簽到記錄"""
@@ -417,7 +421,7 @@ def process_single_signin_record(row_data):
         # 從CSV行中解析資料
         if len(row_data) < 18:
             return False
-            
+
         timestamp = row_data[1].strip() if len(row_data) > 1 else ''
         guardian_name = row_data[2].strip() if len(row_data) > 2 else ''
         guardian_gender = row_data[3].strip() if len(row_data) > 3 else ''
@@ -428,83 +432,81 @@ def process_single_signin_record(row_data):
         phone = row_data[8].strip() if len(row_data) > 8 else ''
         is_member = row_data[9].strip() if len(row_data) > 9 else ''
         addr = row_data[10].strip() if len(row_data) > 10 else ''
-        if(guardian_gender == '男'):
-            guardian_gender='male'
-        else:
-            guardian_gender='female'
-        if(guardian2_gender == '男'):
-            guardian2_gender='male'
-        else:
-            guardian2_gender='female'
+
+        # 標準化性別
+        guardian_gender = 'male' if guardian_gender == '男' else 'female'
+        guardian2_gender = 'male' if guardian2_gender == '男' else 'female'
+
         # 兒童資料從第11欄開始，每3欄一組 (姓名、性別、年齡/生日)
         children_data = []
         for i in range(11, min(len(row_data), 20), 3):
             child_name = row_data[i].strip() if i < len(row_data) else ''
             child_gender = row_data[i+1].strip() if i+1 < len(row_data) else ''
             child_age_birth = row_data[i+2].strip() if i+2 < len(row_data) else ''
-            
+
             if child_name and child_age_birth:
                 children_data.append({
                     'name': child_name,
                     'gender': child_gender,
                     'age_birth': child_age_birth
                 })
-        
-        print(f"處理簽到資料: {guardian_name}, 手機: {phone}, 兒童數: {len(children_data)}")
-        
+
+        logger.info(f"處理簽到資料: {guardian_name}, 手機: {phone}, 兒童數: {len(children_data)}")
+
         # 驗證必要資料
         if not guardian_name or not phone:
-            print(f"缺少必要資料，跳過此記錄")
+            logger.warning(f"缺少必要資料，跳過此記錄")
             return False
-        
+
         # 清理電話號碼
         phone = phone.replace('-', '').replace(' ', '')
         if not phone:
-            print(f"無效的電話號碼，跳過此記錄")
+            logger.warning(f"無效的電話號碼，跳過此記錄")
             return False
-        
+
         # 取得簽到時間
         signin_date = parse_signin_time(timestamp)
-        
+
         # 取得或建立 family_id
         family_id = get_or_create_family_by_parent(guardian_name, phone)
-        
+
         # 處理主要監護人
         guardian_id = get_or_create_parent(family_id, guardian_name, phone, addr, guardian_gender)
-        print(f"處理監護人: {guardian_name} -> {guardian_id}")
-        
+        logger.info(f"處理監護人: {guardian_name} -> {guardian_id}")
+
         # 處理第二監護人（如果存在）
         if guardian2_name and guardian2_name.strip():
             guardian2_id = get_or_create_parent(family_id, guardian2_name, phone, addr, guardian2_gender)
-            print(f"處理第二監護人: {guardian2_name} -> {guardian2_id}")
-        
+            logger.info(f"處理第二監護人: {guardian2_name} -> {guardian2_id}")
+
         # 處理兒童資料
         for idx, child_data in enumerate(children_data):
             child_birth = convert_age_to_birth_date(child_data['age_birth'], signin_date)
             if child_birth:
                 child_id = get_or_create_child_from_signin(
-                    family_id, 
+                    family_id,
                     child_data['name'],
-                    child_data['gender'], 
+                    child_data['gender'],
                     child_birth
                 )
-                print(f"處理兒童{idx+1}: {child_data['name']} -> {child_id}")
-                
+                logger.info(f"處理兒童{idx+1}: {child_data['name']} -> {child_id}")
+
         # 建立環境使用記錄
         if EnvUsage.query.filter_by(family_id=family_id, enter_time=timestamp).first():
-            print("此家庭已存在相同簽到時間，跳過此筆資料")
+            logger.info("此家庭已存在相同簽到時間，跳過此筆資料")
         else:
             event_usage = EnvUsage(
                 family_id=family_id,
                 enter_time=signin_date
             )
             db.session.add(event_usage)
+
         # 提交這筆記錄的變更
         db.session.commit()
         return True
-        
+
     except Exception as e:
-        print(f"處理簽到記錄時發生錯誤: {e}")
+        logger.exception(f"處理簽到記錄時發生錯誤: {e}")
         db.session.rollback()
         return False
 
@@ -547,16 +549,16 @@ def parse_signin_time(timestamp_str):
         ]
         for fmt in fmts:
             try:
-                #print(f"嘗試解析時間戳記: {s} 使用格式: {fmt}")
+                # debug: 嘗試解析不同格式
                 return datetime.strptime(s, fmt)
             except ValueError:
                 continue
 
         # 如果都失敗，回傳今天的日期（保留原始輸入供除錯）
-        print(f"無法解析時間戳記: {temp} -> 經過預處理: {s}")
+        logger.warning(f"無法解析時間戳記: {temp} -> 經過預處理: {s}")
         return date.today()
     except Exception as e:
-        print(f"無法解析時間戳記: {temp} -> {e}")
+        logger.exception(f"無法解析時間戳記: {temp} -> {e}")
         return date.today()
 
 def convert_age_to_birth_date(age_str, signin_date):
@@ -606,13 +608,13 @@ def convert_age_to_birth_date(age_str, signin_date):
         
         # 計算出生日期：簽到日期減去年齡
         birth_date = signin_date - relativedelta(years=years, months=months)
-        
-        print(f"年齡轉換: {age_str} -> {years}年{months}月 -> 出生日期: {birth_date}")
-        
+
+        logger.info(f"年齡轉換: {age_str} -> {years}年{months}月 -> 出生日期: {birth_date}")
+
         return birth_date
-        
+
     except Exception as e:
-        print(f"轉換年齡時發生錯誤: {age_str} -> {e}")
+        logger.exception(f"轉換年齡時發生錯誤: {age_str} -> {e}")
         # 如果出錯，嘗試簡單計算
         try:
             import re
@@ -640,7 +642,7 @@ def get_or_create_child_from_signin(family_id, child_name, gender, birth_date):
         ).first()
         
         if existing_child:
-            print(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
+            logger.info(f"兒童已存在: {child_name} ({birth_date}) in family {family_id}")
             return existing_child.member_id
         
         # 標準化性別
@@ -665,12 +667,12 @@ def get_or_create_child_from_signin(family_id, child_name, gender, birth_date):
             member_role='kids'
         )
         db.session.add(family_relation)
-        
-        print(f"新增兒童: {child_name} ({birth_date})")
+
+        logger.info(f"新增兒童: {child_name} ({birth_date})")
         return kid.member_id
-        
+
     except Exception as e:
-        print(f"處理兒童資料時發生錯誤: {e}")
+        logger.exception(f"處理兒童資料時發生錯誤: {e}")
         raise e
 
 # 新增路由

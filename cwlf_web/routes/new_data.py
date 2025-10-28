@@ -11,11 +11,15 @@ from config import Config
 from datetime import datetime, date
 from flask import Blueprint, request, jsonify,render_template
 import re
+import logging
 import csv
 import uuid
 from werkzeug.utils import secure_filename
 
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
+
+# logger
+logger = logging.getLogger('cwlf')
 
 
 # import config
@@ -67,16 +71,15 @@ def parse_time(timestamp_str):
         ]
         for fmt in fmts:
             try:
-                #print(f"嘗試解析時間戳記: {s} 使用格式: {fmt}")
                 return datetime.strptime(s, fmt)
             except ValueError:
                 continue
 
         # 如果都失敗，回傳今天的日期（保留原始輸入供除錯）
-        print(f"無法解析時間戳記: {temp} -> 經過預處理: {s}")
+        logger.warning(f"無法解析時間戳記: {temp} -> 經過預處理: {s}")
         return date.today()
     except Exception as e:
-        print(f"無法解析時間戳記: {temp} -> {e}")
+        logger.exception(f"無法解析時間戳記: {temp} -> {e}")
         return date.today()
 def process_birthdate(birth_str):
     try:
@@ -95,7 +98,7 @@ def get_family_by_parent(parent_name, phone):
     ).first()
     
     if existing_parent:
-        #print(f"找到現有家庭: {existing_parent.family_id}")
+        logger.info(f"找到現有家庭: {existing_parent.family_id}")
         return existing_parent.family_id
     else:
 
@@ -123,16 +126,16 @@ def process_single_signin_record(row):
             kids_name.append(kid_name)
             kids_birth.append(kid_birth)
     family_id = get_family_by_parent(parents_name[0], parents_phone[0])
-    print(f"Timestamp: {timestamp}")
-    print(f"Station Name: {station_name}")
-    print(f"Parents: {list(zip(parents_name, parents_phone))}")
-    print(f"Kids: {list(zip(kids_name, kids_birth))}")
+    logger.info(f"Timestamp: {timestamp}")
+    logger.info(f"Station Name: {station_name}")
+    logger.info(f"Parents: {list(zip(parents_name, parents_phone))}")
+    logger.info(f"Kids: {list(zip(kids_name, kids_birth))}")
     if not family_id:
-        print("找不到對應的家庭，跳過此筆資料")
+        logger.warning("找不到對應的家庭，跳過此筆資料")
         return
     #確保不要重複簽到
     if EnvUsage.query.filter_by(family_id=family_id, enter_time=timestamp).first():
-        print("此家庭已存在相同簽到時間，跳過此筆資料")
+        logger.info("此家庭已存在相同簽到時間，跳過此筆資料")
         return
     env_usage=EnvUsage(family_id=family_id, enter_time=timestamp)
     visit_log=LogEntry(visit_time=timestamp, station_name=station_name, parent_names=parents_name, phone_nums=parents_phone, kid_names=kids_name, kid_birthdays=kids_birth)
@@ -161,7 +164,7 @@ def process_single_register_record(row):
     kids_gender=[]
     family_id = get_family_by_parent(row[2], row[5])
     if(family_id):
-        print(f"家庭已存在: {family_id}")
+        logger.info(f"家庭已存在: {family_id}")
     else:
         family_id = uuid.uuid4()
     for i in range(2,18,4):
@@ -181,7 +184,7 @@ def process_single_register_record(row):
             phone_num=''.join(filter(str.isdigit, parent_phone))
             ).first()
             if existed_parent:
-                print(f"家長已存在，跳過新增: {parent_name}, {parent_phone}")
+                logger.info(f"家長已存在，跳過新增: {parent_name}, {parent_phone}")
                 continue
             parent=Parent(family_id=family_id, parent_name=parent_name, 
                           register_station=station_name,
@@ -209,18 +212,18 @@ def process_single_register_record(row):
                 BRD=kid_birth
             ).first()
             if existed_kid:
-                print(f"小孩已存在，跳過新增: {kid_name}, {kid_birth}")
+                logger.info(f"小孩已存在，跳過新增: {kid_name}, {kid_birth}")
                 continue
             kid=Kids(family_id=family_id, kids_name=kid_name, BRD=kid_birth, gender=kid_gender)
             db.session.add(kid)
             db.session.flush()
             family_relation=Family(family_id=family_id, member_id=kid.member_id,member_role='kid')
             db.session.add(family_relation)
-    print(f"Timestamp: {timestamp}")
-    print(f"Station Name: {station_name}")
-    print(f"Address: {address}")
-    print(f"Parents: {list(zip(parents_name, parents_gender, parents_role, parents_phone))}")
-    print(f"Kids: {list(zip(kids_name, kids_birth, kids_gender))}")
+    logger.info(f"Timestamp: {timestamp}")
+    logger.info(f"Station Name: {station_name}")
+    logger.info(f"Address: {address}")
+    logger.info(f"Parents: {list(zip(parents_name, parents_gender, parents_role, parents_phone))}")
+    logger.info(f"Kids: {list(zip(kids_name, kids_birth, kids_gender))}")
     db.session.commit()
     return
 def process_file(filepath):
@@ -273,8 +276,9 @@ def process_uploaded_file():
     if not os.path.exists(filepath):
         return jsonify({'success': False, 'error': 'File not found'}), 404
     try:
-        print(f"正在處理檔案: {filepath}")
+        logger.info(f"正在處理檔案: {filepath}")
         process_file(filepath)
         return jsonify({'success': True}), 200
     except Exception as e:
+        logger.exception(f"處理檔案失敗: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
