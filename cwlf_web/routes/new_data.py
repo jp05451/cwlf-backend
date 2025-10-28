@@ -15,6 +15,9 @@ import logging
 import csv
 import uuid
 from werkzeug.utils import secure_filename
+from db_init import get_or_create_family_by_parent, get_or_create_parent, get_or_create_child
+from db_init import convert_age_to_birth_date, get_or_create_child_from_signin
+
 
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
 
@@ -143,6 +146,7 @@ def process_single_signin_record(row):
     db.session.add(visit_log)
     db.session.commit()
     return
+
 def process_single_register_record(row):
     timestamp = parse_time(row[0])
     station_name = row[1]
@@ -167,6 +171,7 @@ def process_single_register_record(row):
         logger.info(f"家庭已存在: {family_id}")
     else:
         family_id = uuid.uuid4()
+    
     for i in range(2,18,4):
         if(i==10):
             i+=1
@@ -226,6 +231,7 @@ def process_single_register_record(row):
     logger.info(f"Kids: {list(zip(kids_name, kids_birth, kids_gender))}")
     db.session.commit()
     return
+
 def process_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
@@ -241,10 +247,10 @@ def process_file(filepath):
     # remove file
     #os.remove(filepath)
     return
+
 @bp.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
-
 
 @bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -254,16 +260,28 @@ def upload_file():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(config.UPLOAD_FOLDER, filename)
-        file.save(filepath)
+    
+    # 檢查檔案類型（可選）
+    try:
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(config.UPLOAD_FOLDER, filename)
+            file.save(filepath)
+            
+            # 解析上傳的 CSV 檔案
+                # parse_family_info_data(filepath)
+            return jsonify({
+                'message': 'File uploaded and processed successfully',
+                'filename': filename
+            }), 200
+        else:
+            return jsonify({'error': 'File type not allowed'}), 400
+
+    except Exception as e:
         return jsonify({
-            'message': 'File uploaded successfully',
-            'filename': filename
-        }), 200
-    else:
-        return jsonify({'error': 'File type not allowed'}), 400
+            'error': f'File uploaded but processing failed: {str(e)}'
+        }), 500
 
 # 新增：處理上傳檔案的 route
 @bp.route('/process_uploaded_file', methods=['POST'])
