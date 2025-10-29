@@ -497,6 +497,7 @@ def process_single_signin_record(row_data):
         else:
             event_usage = EnvUsage(
                 family_id=family_id,
+                station_name='萬華站',
                 enter_time=signin_date
             )
             db.session.add(event_usage)

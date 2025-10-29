@@ -15,8 +15,6 @@ import logging
 import csv
 import uuid
 from werkzeug.utils import secure_filename
-from db_init import get_or_create_family_by_parent, get_or_create_parent, get_or_create_child
-from db_init import convert_age_to_birth_date, get_or_create_child_from_signin
 
 
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
@@ -140,7 +138,7 @@ def process_single_signin_record(row):
     if EnvUsage.query.filter_by(family_id=family_id, enter_time=timestamp).first():
         logger.info("此家庭已存在相同簽到時間，跳過此筆資料")
         return
-    env_usage=EnvUsage(family_id=family_id, enter_time=timestamp)
+    env_usage=EnvUsage(family_id=family_id, station_name=station_name, enter_time=timestamp)
     visit_log=LogEntry(visit_time=timestamp, station_name=station_name, parent_names=parents_name, phone_nums=parents_phone, kid_names=kids_name, kid_birthdays=kids_birth)
     db.session.add(env_usage)
     db.session.add(visit_log)

@@ -52,21 +52,24 @@ class EnvUsage(db.Model):
 
     env_usage_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     family_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK家庭ID
+    station_name = db.Column(db.String(64), nullable=False)  # 進入場所名稱
     enter_time = db.Column(db.DateTime, nullable=False)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, family_id, enter_time):
+    def __init__(self, family_id, station_name, enter_time):
         self.family_id = family_id
+        self.station_name = station_name
         self.enter_time = enter_time
 
     def __repr__(self):
-        return f'<EnvUsage env_usage_id={self.env_usage_id}, family_id={self.family_id}>'
+        return f'<EnvUsage env_usage_id={self.env_usage_id}, station_name={self.station_name}, family_id={self.family_id}>'
 
     def to_dict(self):
         return {
             'env_usage_id': str(self.env_usage_id),
             'family_id': str(self.family_id),
+            'station_name': self.station_name,
             'enter_time': self.enter_time.isoformat() if self.enter_time else None,
             'create_date': self.create_date.isoformat() if self.create_date else None,
             'update_date': self.update_date.isoformat() if self.update_date else None
