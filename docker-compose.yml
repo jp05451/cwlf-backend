@@ -1,11 +1,23 @@
-version: '3.8'
+# version: '3.8'
 services:
-  app:
+  cwlf-backend:
+    build: ./cwlf_web
+    container_name: cwlf-backend
+    image: cwlf-backend:1.0.0
+    ports:
+      - "5000:5000"
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  monitor:
     # build: 告訴 Docker Compose 不要去網路上下載 image，
     # 而是根據 ./app 資料夾裡的 Dockerfile 來「自己建立」一個 image
-    # build: ./app
-    image: jp05451/cwlf-backend:1.0.0
-    container_name: cwlf-app-compose
+    build: ./cwlf_monitor
+    image: cwlf-backend-monitor:1.0.0
+    container_name: cwlf-backend-monitor
     ports:
       # 將我們電腦的 3000 port 連接到容器的 3000 port
       - "3000:3000"
@@ -41,7 +53,7 @@ services:
     image: mysql:9.4.0
     container_name: mysql-compose
     environment:
-      MYSQL_ROOT_PASSWORD: asdfasdf
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
