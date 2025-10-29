@@ -15,6 +15,7 @@ class Parent(db.Model):
     addr = db.Column(db.Text, nullable=True)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    in_same_region = db.Column(db.Boolean, nullable=True)
 
     def __init__(self, family_id, parent_name, phone_num, gender=None, addr=None, register_station=None):
         self.family_id = family_id
@@ -23,7 +24,16 @@ class Parent(db.Model):
         self.gender = gender
         self.addr = addr
         self.register_station = register_station
+        self.in_same_region = self.is_same_region(register_station, addr) if register_station and addr else None
 
+    def is_same_region(self, register_station, addr):
+        # Implement your logic to determine if the parent is in the same region
+        region = register_station[:2]
+        #如果地址包含地區代碼，則視為同區域
+        if region in addr:
+            return True
+        return False
+    
     def __repr__(self):
         return f'<Parent member_id={self.member_id}, name={self.parent_name}, phone={self.phone_num}>'
 
@@ -37,5 +47,6 @@ class Parent(db.Model):
             'addr': self.addr,
             'register_station': self.register_station,
             'create_date': self.create_date.isoformat() if self.create_date else None,
-            'update_date': self.update_date.isoformat() if self.update_date else None
+            'update_date': self.update_date.isoformat() if self.update_date else None,
+            'in_same_region': self.in_same_region
         }
