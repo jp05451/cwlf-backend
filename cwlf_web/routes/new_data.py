@@ -238,12 +238,12 @@ def process_file(filepath):
                 if(row[0]=='時間戳記'):
                     continue
                 process_single_register_record(row)
-            if(len(row) == 28):
+            elif(len(row) == 28):
                 if(row[0]=='時間戳記'):
                     continue
                 process_single_signin_record(row)
             else:
-                logger.warning(f"未知的行格式:{row}")
+                logger.warning(f"未知的行格式:{row} {len(row)}")
     # remove file
     #os.remove(filepath)
     return
