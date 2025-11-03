@@ -12,9 +12,8 @@ RUN pip install -r requirements.txt
 
 # 將所有程式碼複製進工作區
 COPY . .
-RUN find . -name "*.db" -type f -delete
 
-EXPOSE 5000
+EXPOSE 5001
 
-CMD ["sh", "-c", "python app.py --port 5000"]
+CMD ["sh", "-c", "python app.py"]
 
