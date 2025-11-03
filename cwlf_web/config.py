@@ -5,4 +5,4 @@ class Config:
     ALLOWED_EXTENSIONS = {'csv'}
     HOST = '0.0.0.0'
     PORT = 5001
-    DEBUG = True
+    DEBUG = False
