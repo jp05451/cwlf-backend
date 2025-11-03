@@ -1,31 +1,33 @@
 #!/bin/bash
 
-# --- 可設定的變數 ---
-# 你的 Docker 容器名稱
-CONTAINER_NAME="mysql-compose"
-# 備份檔案要存放的目錄 (在專案根目錄下建立一個 backups 資料夾)
-BACKUP_DIR="$(pwd)/backups"
-# --- ---
+# 設定變數
+CONTAINER_NAME="cwlf-backend"
+DB_PATH="/app/instance/site.db"  # 根據實際路徑調整
+BACKUP_DIR="/home/jp05451/cwlf-backend/backups"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="db_backup_${TIMESTAMP}.db"
 
-# 建立一個以日期和時間命名的備份檔案，例如：backup-20240803-153000.sql
-TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-FILENAME="${BACKUP_DIR}/backup-${TIMESTAMP}.sql"
+# 建立備份目錄
+mkdir -p ${BACKUP_DIR}
 
-# 確保備份目錄存在，如果不存在就建立它
-mkdir -p "${BACKUP_DIR}"
+# 檢查容器是否運行
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  echo "錯誤: 容器 ${CONTAINER_NAME} 未運行"
+  exit 1
+fi
 
-echo "正在備份資料庫從容器 ${CONTAINER_NAME}..."
-echo "備份檔案將儲存至: ${FILENAME}"
+# 從容器複製資料庫檔案
+echo "開始備份資料庫..."
+docker cp ${CONTAINER_NAME}:${DB_PATH} ${BACKUP_DIR}/${BACKUP_FILE}
 
-# 執行我們熟悉的 mysqldump 指令
-# 使用 docker exec 在指定的容器內執行備份指令
-# 並將結果導向到我們剛剛定義的檔案中
-docker exec "${CONTAINER_NAME}" mysqldump -u root -p'asdfasdf' --all-databases > "${FILENAME}"
-
-# 檢查上一個指令是否成功
+# 檢查備份是否成功
 if [ $? -eq 0 ]; then
-  echo "✅ 資料庫備份成功！"
+  echo "備份成功: ${BACKUP_DIR}/${BACKUP_FILE}"
+  
+  # 刪除 7 天前的備份
+  find ${BACKUP_DIR} -name "db_backup_*.db" -mtime +7 -delete
+  echo "已清理 7 天前的舊備份"
 else
-  echo "❌ 資料庫備份失敗！"
+  echo "備份失敗"
   exit 1
 fi
