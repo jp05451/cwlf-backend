@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Welcome</title>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>2025 Tcross X 兒福聯盟</title>
+    <style>
+        :root{
+            --bg:#f6f8fb;
+            --card:#ffffff;
+            --primary:#1167b1;
+            --accent:#20c997;
+            --muted:#6c757d;
+        }
+        html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; background:var(--bg); color:#222}
+        .container{max-width:880px;margin:36px auto;padding:20px}
+        .card{background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);padding:28px}
+        header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+        .brand{display:flex;gap:14px;align-items:center}
+        .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#3aa0ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+        h1{font-size:20px;margin:0}
+        p.lead{margin:6px 0 18px;color:var(--muted)}
+        .upload-section{display:flex;flex-direction:column;gap:14px}
+        .file-row{display:flex;gap:12px;align-items:center}
+        #fileInput{flex:1}
+        #fileName{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        #uploadBtn{background:var(--primary);color:white;padding:10px 16px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+        #uploadBtn:active{transform:translateY(1px)}
+        .progress-container{width:100%;height:14px;background:#eef4fb;border-radius:999px;overflow:hidden}
+        .progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),#28a745);width:0%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+        .status-message{min-height:36px;padding:10px;border-radius:8px}
+        .status-message.success{background:#e6f9ee;color:#08623a}
+        .status-message.error{background:#ffecee;color:#7a1d2a}
+        footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+        @media(max-width:520px){.file-row{flex-direction:column;align-items:stretch}#uploadBtn{width:100%}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <header>
+                <div class="brand">
+                    <div class="logo">T</div>
+                    <div>
+                        <h1>2025 Tcross X 兒福聯盟</h1>
+                        <div class="lead">檔案上傳與自動資料處理介面</div>
+                    </div>
+                </div>
+                <div style="text-align:right;color:var(--muted);font-size:13px">上傳與處理系統</div>
+            </header>
+
+            <main>
+                <section class="upload-section">
+                    <div class="file-row">
+                        <input type="file" id="fileInput" accept="*/*">
+                        <button id="uploadBtn">上傳檔案</button>
+                    </div>
+                    <div id="fileName"></div>
+
+                    <div class="progress-container">
+                        <div id="progressBar" class="progress-bar">0%</div>
+                    </div>
+
+                    <div id="statusMessage" class="status-message"></div>
+                </section>
+            </main>
+        </div>
+        <footer>&copy; 2025 Tcross × 兒福聯盟</footer>
+    </div>
+
+    <!-- 保留原始上傳與處理 JS 行為，僅新增顯示檔名功能 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const progressBar = document.getElementById('progressBar');
+            const statusMessage = document.getElementById('statusMessage');
+            const fileNameLabel = document.getElementById('fileName');
+
+            fileInput.addEventListener('change', function(){
+                const f = fileInput.files[0];
+                fileNameLabel.textContent = f ? `選擇檔案：${f.name}` : '';
+            });
+
+            uploadBtn.addEventListener('click', function() {
+                const file = fileInput.files[0];
+                if (!file) {
+                    statusMessage.textContent = '請先選擇檔案';
+                    statusMessage.className = 'status-message error';
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressBar.style.width = percentComplete + '%';
+                        progressBar.textContent = Math.round(percentComplete) + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', function() {
+                    if (xhr.status === 200) {
+                        statusMessage.textContent = '檔案已上傳，處理中...';
+                        statusMessage.className = 'status-message';
+                        progressBar.style.width = '0%';
+                        try{ const resp = JSON.parse(xhr.responseText); processUploadedFile(resp.filename); }catch(e){ statusMessage.textContent='上傳回應解析失敗'; statusMessage.className='status-message error' }
+                    } else {
+                        statusMessage.textContent = '上傳失敗: ' + xhr.statusText;
+                        statusMessage.className = 'status-message error';
+                        progressBar.style.width = '0%';
+                    }
+                });
+
+                xhr.addEventListener('error', function() {
+                    statusMessage.textContent = '上傳發生錯誤';
+                    statusMessage.className = 'status-message error';
+                    progressBar.style.width = '0%';
+                });
+
+                xhr.open('POST', '/upload');
+                xhr.send(formData);
+                statusMessage.textContent = '上傳中...';
+                statusMessage.className = 'status-message';
+            });
+
+            function processUploadedFile(filename) {
+                statusMessage.textContent = '正在處理資料...';
+                statusMessage.className = 'status-message';
+                fetch('/process_uploaded_file', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        statusMessage.textContent = '資料處理完成！';
+                        statusMessage.className = 'status-message success';
+                    } else {
+                        statusMessage.textContent = '資料處理失敗: ' + (data.error || '未知錯誤');
+                        statusMessage.className = 'status-message error';
+                    }
+                })
+                .catch(err => {
+                    statusMessage.textContent = '資料處理時發生錯誤';
+                    statusMessage.className = 'status-message error';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

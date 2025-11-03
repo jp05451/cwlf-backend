@@ -15,7 +15,7 @@ RUN npm install
 COPY . .
 
 # 步驟6：告訴外界，這個便當盒的 3000 號窗口是對外服務的
-EXPOSE 3000
+EXPOSE 5000
 
 # 步驟7：設定便當盒的「啟動指令」。當容器啟動時，會自動執行 npm start
 CMD [ "npm", "start" ]

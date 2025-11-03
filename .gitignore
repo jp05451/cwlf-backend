@@ -1,2 +1,6 @@
 backups/
-.venv
+cwlf_web/uploads
+.env
+.venv/
+__pycache__/
+*.pyc
