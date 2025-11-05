@@ -6,7 +6,7 @@ from datetime import datetime
 class Station(db.Model):
     __tablename__ = 'd_station'
 
-    station_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    station_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
     station_name = db.Column(db.String(24), nullable=False)
     addr = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(24), nullable=False)  # 總部、育兒+、...

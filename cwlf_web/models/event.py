@@ -6,12 +6,12 @@ from datetime import datetime
 class EventInfo(db.Model):
     __tablename__ = 'd_event_info'
 
-    event_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    event_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
     event_name = db.Column(db.String(64), nullable=False)
     event_category = db.Column(db.String(24), nullable=False)  # 保持原規格拼字
     event_description = db.Column(db.Text, nullable=True)
     prior_category = db.Column(db.String(24), nullable=True)  # 須參加的前置活動類別
-    station_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK主辦單位
+    station_id = db.Column(db.String(64), nullable=False)  # FK主辦單位
     register_necessary = db.Column(db.Boolean, nullable=False)  # 是否需註冊
     event_start_date = db.Column(db.DateTime, nullable=False)
     event_end_date = db.Column(db.DateTime, nullable=False)
@@ -50,8 +50,8 @@ class EventInfo(db.Model):
 class EnvUsage(db.Model):
     __tablename__ = 'd_env_usage'
 
-    env_usage_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    family_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK家庭ID
+    env_usage_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
+    family_id = db.Column(db.String(64), nullable=False)  # FK家庭ID
     station_name = db.Column(db.String(64), nullable=False)  # 進入場所名稱
     enter_time = db.Column(db.DateTime, nullable=False)
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -79,8 +79,8 @@ class EnvUsage(db.Model):
 class EventParticipate(db.Model):
     __tablename__ = 'd_event_participate'
 
-    env_participate_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    event_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK活動ID
+    env_participate_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
+    event_id = db.Column(db.String(64), nullable=False)  # FK活動ID
     event_register_date = db.Column(db.Date, nullable=False)
     participate = db.Column(db.Boolean, nullable=False)  # 是否報到
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

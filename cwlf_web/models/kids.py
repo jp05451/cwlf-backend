@@ -6,8 +6,8 @@ from datetime import datetime, date
 class Kids(db.Model):
     __tablename__ = 'd_kids'
 
-    member_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    family_id = db.Column(UUID(as_uuid=True), nullable=False)
+    member_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
+    family_id = db.Column(db.String(64), nullable=False)
     gender = db.Column(db.String(24), nullable=False)  # male, female, other, unknow
     kids_name = db.Column(db.String(24), nullable=False)  # Required: Name of the kid
     #id_last4 = db.Column(db.Integer, nullable=True)

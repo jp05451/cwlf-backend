@@ -6,9 +6,9 @@ from datetime import datetime
 class Family(db.Model):
     __tablename__ = 'd_family'
 
-    family_pair_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    family_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK for family grouping
-    member_id = db.Column(UUID(as_uuid=True), nullable=False)  # FK to d_parent or d_kids
+    family_pair_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
+    family_id = db.Column(db.String(64), nullable=False)  # FK for family grouping
+    member_id = db.Column(db.String(64), nullable=False)  # FK to d_parent or d_kids
     member_role = db.Column(db.String(24), nullable=False)  # parent, kids, relative, other
     create_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     update_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
