@@ -17,11 +17,11 @@ const dbConfig = {
     database: process.env.MYSQL_DATABASE
 };
 
-const rabbitmqConfig = {
-    hostname: process.env.RABBITMQ_HOST,
-    username: process.env.RABBITMQ_DEFAULT_USER,
-    password: process.env.RABBITMQ_DEFAULT_PASS
-};
+// const rabbitmqConfig = {
+//     hostname: process.env.RABBITMQ_HOST,
+//     username: process.env.RABBITMQ_DEFAULT_USER,
+//     password: process.env.RABBITMQ_DEFAULT_PASS
+// };
 
 // 這是主路由，當我們訪問網站首頁時會觸發
 app.get('/', async (req, res) => {
@@ -38,20 +38,20 @@ app.get('/', async (req, res) => {
         dbStatus = `Failed to connect: ${error.message}`;
     }
 
-    // 測試 RabbitMQ 連線
-    try {
-        const connection = await amqp.connect(rabbitmqConfig);
-        rabbitStatus = 'Connected Successfully!';
-        await connection.close();
-    } catch (error) {
-        rabbitStatus = `Failed to connect: ${error.message}`;
-    }
+    // // 測試 RabbitMQ 連線
+    // try {
+    //     const connection = await amqp.connect(rabbitmqConfig);
+    //     rabbitStatus = 'Connected Successfully!';
+    //     await connection.close();
+    // } catch (error) {
+    //     rabbitStatus = `Failed to connect: ${error.message}`;
+    // }
 
     // 在網頁上顯示結果
     res.send(`
         <h1>CWLF Backend Status</h1>
         <p><strong>MySQL Database Status:</strong> ${dbStatus}</p>
-        <p><strong>RabbitMQ Service Status:</strong> ${rabbitStatus}</p>
+        <!-- <p><strong>RabbitMQ Service Status:</strong> ${rabbitStatus}</p> /--!>
     `);
 });
 
@@ -63,8 +63,8 @@ app.get('/health', async (req, res) => {
         await dbConnection.end();
 
         // 2. 檢查 RabbitMQ 連線
-        const rabbitConnection = await amqp.connect(rabbitmqConfig);
-        await rabbitConnection.close();
+        // const rabbitConnection = await amqp.connect(rabbitmqConfig);
+        // await rabbitConnection.close();
 
         // 如果所有檢查都通過，回報健康狀態
         res.status(200).json({ status: 'ok', message: 'All services are healthy.' });
@@ -81,5 +81,5 @@ app.listen(PORT, () => {
     console.log(`CWLF backend app listening on port ${PORT}`);
     console.log('Connecting with the following config:');
     console.log('DB Host:', dbConfig.host);
-    console.log('RabbitMQ Host:', rabbitmqConfig.hostname);
+    // console.log('RabbitMQ Host:', rabbitmqConfig.hostname);
 });

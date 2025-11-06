@@ -6,70 +6,76 @@ services:
     image: jp05451/cwlf-backend:latest
     ports:
       - "5001:5001"
-    # depends_on:
-    #   mysql_db:
-    #     condition: service_healthy
+    volumes:
+      - /Users/ethan/Documents/cwlf-backend/cwlf_web/log:/app/log
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+    restart: always
     #   rabbitmq:
     #     condition: service_healthy
 
-#   monitor:
-#     # build: 告訴 Docker Compose 不要去網路上下載 image，
-#     # 而是根據 ./app 資料夾裡的 Dockerfile 來「自己建立」一個 image
-#     build: ./cwlf_monitor
-#     image: cwlf-backend-monitor:1.0.0
-#     container_name: cwlf-backend-monitor
-#     ports:
-#       # 將我們電腦的 3000 port 連接到容器的 3000 port
-#       - "3000:3000"
-#     environment:
-#       # 這裡就是魔法發生的地方！我們把連線資訊當作環境變數傳進去。
-#       # 注意：host 的值是「服務名稱」，而不是 localhost！
-#       - MYSQL_HOST=mysql_db
-#       - MYSQL_USER=root
-#       - MYSQL_ROOT_PASSWORD=asdfasdf
-#       - MYSQL_DATABASE=mysql # 我們可以先連到預設的 mysql 資料庫測試
-#       - RABBITMQ_HOST=rabbitmq
-#       - RABBITMQ_DEFAULT_USER=guest
-#       - RABBITMQ_DEFAULT_PASS=guest
-#     # depends_on: 確保在啟動 app 之前，先啟動 mysql_db 和 rabbitmq
-#     # 這能解決大部分啟動順序問題。
-#     depends_on:
-#       mysql_db:
-#         condition: service_healthy
-#       rabbitmq:
-#         condition: service_healthy
-#     healthcheck:
-#       # test: 使用我們剛安裝的 curl 工具去檢查 /health 端點
-#       # -f: --fail 的縮寫，如果 HTTP 狀態不是 2xx，curl 會以錯誤碼退出，這正是我們需要的
-#       test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
-#       interval: 30s    # 每 30 秒檢查一次
-#       timeout: 10s     # 檢查超過 10 秒算失敗
-#       retries: 3       # 連續失敗 3 次才標記為 unhealthy
-#       start_period: 60s # 同樣給予寬限期，等待 app 啟動並完成首次連線
+  monitor:
+    # build: ./cwlf_monitor
+    image: jp05451/cwlf-backend-monitor:latest
+    container_name: cwlf-backend-monitor
+    ports:
+      # 將我們電腦的 3000 port 連接到容器的 3000 port
+      - "3000:3000"
+    environment:
+      # 這裡就是魔法發生的地方！我們把連線資訊當作環境變數傳進去。
+      # 注意：host 的值是「服務名稱」，而不是 localhost！
+      - MYSQL_HOST=mysql_db
+      - MYSQL_USER=root
+      - MYSQL_ROOT_PASSWORD=asdfasdf
+      - MYSQL_DATABASE=mysql # 我們可以先連到預設的 mysql 資料庫測試
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    # depends_on: 確保在啟動 app 之前，先啟動 mysql_db 和 rabbitmq
+    # 這能解決大部分啟動順序問題。
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+      # rabbitmq:
+      #   condition: service_healthy
+    healthcheck:
+      # test: 使用我們剛安裝的 curl 工具去檢查 /health 端點
+      # -f: --fail 的縮寫，如果 HTTP 狀態不是 2xx，curl 會以錯誤碼退出，這正是我們需要的
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s    # 每 30 秒檢查一次
+      timeout: 10s     # 檢查超過 10 秒算失敗
+      retries: 3       # 連續失敗 3 次才標記為 unhealthy
+      start_period: 60s # 同樣給予寬限期，等待 app 啟動並完成首次連線
+    restart: always
+
   
 #   # 這是我們的 MySQL 服務
 #   # 注意：這裡的 image 版本是 9.4.0，
-#   mysql_db:
-#     image: mysql:9.4.0
-#     container_name: mysql
-#     environment:
-#       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-#     ports:
-#       - "3306:3306"
-#     volumes:
-#       # 使用 Docker 管理的 "named volume"，而不是直接綁定目錄
-#       - mysql-data:/var/lib/mysql
-#     healthcheck:
-#       # test: 要執行的檢查指令。CMD-SHELL 允許我們使用 shell 語法。
-#       # mysqladmin ping 會嘗試連接伺服器，成功則返回 0。
-#       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD}"]
-#       # interval: 每 10 秒檢查一次
-#       interval: 10s
-#       # timeout: 如果檢查指令超過 5 秒沒回應，就視為失敗
-#       timeout: 5s
-#       # retries: 連續失敗 5 次後，才將容器標記為 "unhealthy"
-#       retries: 5
-#       start_period: 10s
+  mysql_db:
+    image: mysql:9.4.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: cwlf_db  # 自動建立此資料庫
+    ports:
+      - "3306:3306"
+    # volumes:
+      # 使用 Docker 管理的 "named volume"，而不是直接綁定目錄
+      # - mysql-data:/var/lib/mysql
+    healthcheck:
+      # test: 要執行的檢查指令。CMD-SHELL 允許我們使用 shell 語法。
+      # mysqladmin ping 會嘗試連接伺服器,成功則返回 0。
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD}"]
+      # interval: 每 10 秒檢查一次
+      interval: 10s
+      # timeout: 如果檢查指令超過 5 秒沒回應,就視為失敗
+      timeout: 5s
+      # retries: 連續失敗 5 次後,才將容器標記為 "unhealthy"
+      retries: 5
+      start_period: 10s
+    restart: always
+
 
 
 #   # 這是我們新增的 RabbitMQ 服務

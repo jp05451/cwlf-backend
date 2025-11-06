@@ -6,7 +6,7 @@ from datetime import datetime
 class LogEntry(db.Model):
     __tablename__ = 'ods_user_visit_log'
     
-    user_visit_log_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_visit_log_id = db.Column(db.String(64), primary_key=True, default=uuid.uuid4, nullable=False)
     ods_user_visit_log = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     station_name = db.Column(db.String(24), nullable=False)
     #家長1~4姓名
