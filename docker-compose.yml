@@ -1,7 +1,7 @@
 # version: '3.8'
 services:
   cwlf-backend:
-    build: ./cwlf_web
+    # build: ./cwlf_web
     container_name: cwlf-backend
     image: jp05451/cwlf-backend:latest
     ports:
@@ -16,8 +16,8 @@ services:
     #     condition: service_healthy
 
   monitor:
-    build: ./cwlf_monitor
-    image: cwlf-backend-monitor:latest
+    # build: ./cwlf_monitor
+    image: jp05451/cwlf-backend-monitor:latest
     container_name: cwlf-backend-monitor
     ports:
       # 將我們電腦的 3000 port 連接到容器的 3000 port
