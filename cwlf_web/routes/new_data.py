@@ -15,6 +15,7 @@ import logging
 import csv
 import uuid
 from werkzeug.utils import secure_filename
+import requests
 
 
 bp = Blueprint('new_data', __name__,template_folder=os.path.join(os.path.dirname(__file__), '../templates'))
@@ -300,3 +301,44 @@ def process_uploaded_file():
     except Exception as e:
         logger.exception(f"處理檔案失敗: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/health', methods=['GET'])
+def health_check():
+    """檢查 cwlf-backend-monitor 服務的健康狀態"""
+    try:
+        # 向 cwlf-backend-monitor 服務發送請求
+        response = requests.get('http://cwlf-backend-monitor:3000/health', timeout=5)
+
+        if response.status_code == 200:
+            return jsonify({
+                'status': 'ok',
+                'monitor_service': 'healthy'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'monitor_service': 'unhealthy',
+                'status_code': response.status_code
+            }), 503
+
+    except requests.exceptions.Timeout:
+        logger.error("Monitor service health check timeout")
+        return jsonify({
+            'status': 'error',
+            'monitor_service': 'timeout'
+        }), 503
+
+    except requests.exceptions.ConnectionError:
+        logger.error("Monitor service connection error")
+        return jsonify({
+            'status': 'error',
+            'monitor_service': 'unreachable'
+        }), 503
+
+    except Exception as e:
+        logger.exception(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'error',
+            'monitor_service': 'error',
+            'message': str(e)
+        }), 503
