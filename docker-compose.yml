@@ -1,13 +1,13 @@
 # version: '3.8'
 services:
   cwlf-backend:
-    # build: ./cwlf_web
+    build: ./cwlf_web
     container_name: cwlf-backend
     image: jp05451/cwlf-backend:latest
     ports:
       - "5001:5001"
     volumes:
-      - /Users/ethan/Documents/cwlf-backend/cwlf_web/log:/app/log
+      - ./cwlf_web/log:/app/log
     depends_on:
       mysql_db:
         condition: service_healthy
@@ -26,8 +26,8 @@ services:
       # 這裡就是魔法發生的地方！我們把連線資訊當作環境變數傳進去。
       # 注意：host 的值是「服務名稱」，而不是 localhost！
       - MYSQL_HOST=mysql_db
-      - MYSQL_USER=root
-      - MYSQL_ROOT_PASSWORD=asdfasdf
+      - MYSQL_USER=${MYSQL_ROOT_USER}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=mysql # 我們可以先連到預設的 mysql 資料庫測試
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_DEFAULT_USER=guest
