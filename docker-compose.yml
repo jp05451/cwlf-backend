@@ -58,6 +58,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: cwlf_db  # 自動建立此資料庫
+      TZ: Asia/Taipei
     ports:
       - "3306:3306"
     # volumes:
